@@ -1,0 +1,9 @@
+[package]
+name = "identicon"
+version = "0.1.0"
+authors = ["sudden6 <sudden6@users.noreply.github.com>"]
+
+[dependencies]
+image = "*"
+hsl = "*"
+rand = "*"
