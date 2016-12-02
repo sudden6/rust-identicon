@@ -1,18 +1,18 @@
 /*
-	Copyright © 2016 sudden6 <sudden6@gmx.at>
+    Copyright © 2016 sudden6 <sudden6@gmx.at>
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-	You should have received a copy of the GNU General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 extern crate image;
@@ -20,8 +20,8 @@ extern crate hsl;
 extern crate rand;
 
 use image::{
-	DynamicImage,
-	ImageBuffer
+    DynamicImage,
+    ImageBuffer
 };
 
 use hsl::HSL;
@@ -48,88 +48,88 @@ const HASH_MIN_LEN: u8 = ACTIVE_COLS*IDENTICON_ROWS + (COLORS as u8)*IDENTICON_C
 
 #[derive(Debug)]
 pub enum ErrorConvert {
-	TooShort
+    TooShort
 }
 
 /**
 Returns the RGB colors of a HSL color. Expects all HSL values in the range 0.0 - 1.0
 */
 fn hsl2rgb(h: f64, s: f64, l: f64) -> [u8; 3] {
-	let rgb = (HSL { h: 360_f64 * h as f64, s: s, l: l }).to_rgb();
-	[rgb.0, rgb.1, rgb.2]
+    let rgb = (HSL { h: 360_f64 * h as f64, s: s, l: l }).to_rgb();
+    [rgb.0, rgb.1, rgb.2]
 }
 
 fn normalize(value: u64, bytes: u8) -> f64 {
-	value as f64 / ((1_i64 << (8 * (bytes - 1))) as  f64) // normalize to 0.0 ... 1.0
+    value as f64 / ((1_i64 << (8 * (bytes - 1))) as  f64) // normalize to 0.0 ... 1.0
 }
 
 fn bytes_to_color(bytes: &[u8]) -> f64 {
 
-	if bytes.len() == IDENTICON_COLOR_BYTES as usize {
-	println!("hash_color:{:?}", bytes);
-	// get foreground color
-	let mut fg_hue: u64 = bytes[0] as u64;
-	
-	// convert the last bytes to an uint
-	for x in 1..(IDENTICON_COLOR_BYTES as usize - 1) {
-		fg_hue = fg_hue << 8;
-		fg_hue += bytes[x] as u64;
-	}
+    if bytes.len() == IDENTICON_COLOR_BYTES as usize {
+    println!("hash_color:{:?}", bytes);
+    // get foreground color
+    let mut fg_hue: u64 = bytes[0] as u64;
 
-	return normalize(fg_hue, IDENTICON_COLOR_BYTES)
-	}
-	0.0
+    // convert the last bytes to an uint
+    for x in 1..(IDENTICON_COLOR_BYTES as usize - 1) {
+        fg_hue = fg_hue << 8;
+        fg_hue += bytes[x] as u64;
+    }
+
+    return normalize(fg_hue, IDENTICON_COLOR_BYTES)
+    }
+    0.0
 }
 
 pub fn pk_to_image(hash: &[u8]) -> Result<DynamicImage, ErrorConvert> {
-	if hash.len() < HASH_MIN_LEN as usize {
-		return Err(ErrorConvert::TooShort)
-	}
-	
-	println!("hash: {:?}", hash);
+    if hash.len() < HASH_MIN_LEN as usize {
+        return Err(ErrorConvert::TooShort)
+    }
 
-	let mut colors: [[u8; 3]; COLORS] = [[0, 0, 0]; COLORS];
+    println!("hash: {:?}", hash);
 
-	for color_index in 0..COLORS
-	{
-		let hash_part = &hash[hash.len() - (color_index + 1) * IDENTICON_COLOR_BYTES as usize.. (hash.len() - color_index * IDENTICON_COLOR_BYTES as usize)];
+    let mut colors: [[u8; 3]; COLORS] = [[0, 0, 0]; COLORS];
 
-		let hue = bytes_to_color(hash_part);
-		let lig = (color_index as f64)*0.5 + 0.3;
-		let sat = 0.5;
-		colors[color_index] = hsl2rgb(hue, sat, lig);
-	}
-	
-	println!("colors: {:?}", colors);
-	
-	// println!("fg color {:?}, bg color {:?}", fg_color, bg_color);
+    for color_index in 0..COLORS
+    {
+        let hash_part = &hash[hash.len() - (color_index + 1) * IDENTICON_COLOR_BYTES as usize.. (hash.len() - color_index * IDENTICON_COLOR_BYTES as usize)];
 
-	let mut color_map = [[&colors[0]; ACTIVE_COLS as usize]; IDENTICON_ROWS as usize];
+        let hue = bytes_to_color(hash_part);
+        let lig = (color_index as f64)*0.5 + 0.3;
+        let sat = 0.5;
+        colors[color_index] = hsl2rgb(hue, sat, lig);
+    }
 
-	
-	// compute the block colors from the hash
-	for x in 0..(IDENTICON_ROWS * ACTIVE_COLS) as usize
-	{
-		let row = x % (IDENTICON_ROWS as usize);
-		let col = x / (IDENTICON_ROWS as usize);
-		let col_index = (hash[x] as usize % COLORS) as usize;
-		
-		color_map[row][col] = &colors[col_index];
-	}
-	
-	
-	let mut img = ImageBuffer::new(IMG_SIDE as u32, IMG_SIDE as u32);
-	
-	//println!("{:?}", color_map);
-	
-	// draw a picture from the color_map
-	for (x, y, pixel) in img.enumerate_pixels_mut() {
-		let row: usize = (y / (IDENTICON_BLOCK_SIZE as u32)) as usize;
-		let col_tm: usize = (x / (IDENTICON_BLOCK_SIZE as u32)) as usize;
-		let col: usize = ((col_tm as isize *2 - (IDENTICON_ROWS as isize - 1))/2).abs() as usize; // mirror on vertical axis
-		//println!("pixel x:{:?} y:{:?} --- row:{:?} col:{:?}", x, y, row, col);
-		
-		*pixel = image::Rgb(*color_map[row][col]);
-	}
-	Ok(image::ImageRgb8(img))
+    println!("colors: {:?}", colors);
+
+    // println!("fg color {:?}, bg color {:?}", fg_color, bg_color);
+
+    let mut color_map = [[&colors[0]; ACTIVE_COLS as usize]; IDENTICON_ROWS as usize];
+
+
+    // compute the block colors from the hash
+    for x in 0..(IDENTICON_ROWS * ACTIVE_COLS) as usize
+    {
+        let row = x % (IDENTICON_ROWS as usize);
+        let col = x / (IDENTICON_ROWS as usize);
+        let col_index = (hash[x] as usize % COLORS) as usize;
+
+        color_map[row][col] = &colors[col_index];
+    }
+
+
+    let mut img = ImageBuffer::new(IMG_SIDE as u32, IMG_SIDE as u32);
+
+    //println!("{:?}", color_map);
+
+    // draw a picture from the color_map
+    for (x, y, pixel) in img.enumerate_pixels_mut() {
+        let row: usize = (y / (IDENTICON_BLOCK_SIZE as u32)) as usize;
+        let col_tm: usize = (x / (IDENTICON_BLOCK_SIZE as u32)) as usize;
+        let col: usize = ((col_tm as isize *2 - (IDENTICON_ROWS as isize - 1))/2).abs() as usize; // mirror on vertical axis
+        //println!("pixel x:{:?} y:{:?} --- row:{:?} col:{:?}", x, y, row, col);
+
+        *pixel = image::Rgb(*color_map[row][col]);
+    }
+    Ok(image::ImageRgb8(img))
 }
