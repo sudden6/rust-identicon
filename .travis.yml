@@ -1,0 +1,25 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+
+os:
+  - linux
+  - osx
+
+branches:
+  except:
+    - test
+
+matrix:
+  allow_failures:
+  - rust: beta
+  - rust: nightly
+  - os: osx
+
+after_success:
+  - >
+    test $TRAVIS_PULL_REQUEST == "false"
+    && test $TRAVIS_BRANCH == "master"
+    && bash ./scripts/deploy-gh-pages.sh
