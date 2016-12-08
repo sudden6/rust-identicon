@@ -18,6 +18,12 @@ matrix:
   - rust: nightly
   - os: osx
 
+# needed, since travis doesn't build docs by default
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo doc
+
 after_success:
   - >
     test $TRAVIS_PULL_REQUEST == "false"
