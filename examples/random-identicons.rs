@@ -20,6 +20,8 @@ extern crate rand;
 extern crate identicon;
 
 use identicon::*;
+use std::fs::File;
+use std::path::Path;
 
 
 fn main() {
@@ -30,7 +32,7 @@ fn main() {
         198, 174, 163, 126, 121, 255, 255, 255, 227, 69, 62, 220, 152, 128, 102
     ];
 
-    let img = pk_to_image(&pk).unwrap();
+    let img = pk_to_image(&pk, 80).unwrap();
 
     // Save the image as out.png
     let ref mut outfile = File::create(&Path::new("out.png")).unwrap();
@@ -44,7 +46,7 @@ fn main() {
             *x = rand::random();
         }
 
-        let imgx = pk_to_image(&pk).unwrap();
+        let imgx = pk_to_image(&pk, 80).unwrap();
         let filename = format!("out{}.png", pic);
         // Save the image as out.png
         let ref mut outfilex = File::create(&Path::new(&filename)).unwrap();

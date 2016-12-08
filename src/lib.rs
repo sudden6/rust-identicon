@@ -17,7 +17,6 @@
 
 extern crate image;
 extern crate hsl;
-extern crate rand;
 
 use image::{
     DynamicImage,
@@ -25,9 +24,6 @@ use image::{
 };
 
 use hsl::HSL;
-
-// specifies the size of one colored block in the identicon, must be divisible by 8 for PNG output
-const IDENTICON_BLOCK_SIZE: u8 = 10*8;
 
 // specifies how many bytes should define the foreground color, must be smaller than 8, else there'll be overflows
 const IDENTICON_COLOR_BYTES: u8 = 7;
@@ -39,8 +35,6 @@ const COLORS: usize = 2;
 const IDENTICON_ROWS: u8 = 5;
 // width from the center to the outside, for 5 columns it's 3, 6 -> 3, 7 -> 4
 const ACTIVE_COLS: u8 = (IDENTICON_ROWS + 1)/2;
-// length of one image side in pixels, must be divisible by 8
-const IMG_SIDE: u32 = IDENTICON_ROWS as u32 * IDENTICON_BLOCK_SIZE as u32;
 
 // min length of the hash in bytes, 7 bytes control the color,
 // the rest controls the pixel placement
@@ -48,7 +42,8 @@ const HASH_MIN_LEN: u8 = ACTIVE_COLS*IDENTICON_ROWS + (COLORS as u8)*IDENTICON_C
 
 #[derive(Debug)]
 pub enum ErrorConvert {
-    TooShort
+    HashTooShort,
+    InvalidSize
 }
 
 /**
@@ -66,27 +61,34 @@ fn normalize(value: u64, bytes: u8) -> f64 {
 fn bytes_to_color(bytes: &[u8]) -> f64 {
 
     if bytes.len() == IDENTICON_COLOR_BYTES as usize {
-    println!("hash_color:{:?}", bytes);
-    // get foreground color
-    let mut fg_hue: u64 = bytes[0] as u64;
+        println!("hash_color:{:?}", bytes);
+        // get foreground color
+        let mut fg_hue: u64 = bytes[0] as u64;
 
-    // convert the last bytes to an uint
-    for x in 1..(IDENTICON_COLOR_BYTES as usize - 1) {
-        fg_hue = fg_hue << 8;
-        fg_hue += bytes[x] as u64;
-    }
+        // convert the last bytes to an uint
+        for x in 1..(IDENTICON_COLOR_BYTES as usize - 1) {
+            fg_hue = fg_hue << 8;
+            fg_hue += bytes[x] as u64;
+        }
 
-    return normalize(fg_hue, IDENTICON_COLOR_BYTES)
+        return normalize(fg_hue, IDENTICON_COLOR_BYTES)
     }
     0.0
 }
 
-pub fn pk_to_image(hash: &[u8]) -> Result<DynamicImage, ErrorConvert> {
+pub fn pk_to_image(hash: &[u8], size_factor: u16) -> Result<DynamicImage, ErrorConvert> {
     if hash.len() < HASH_MIN_LEN as usize {
-        return Err(ErrorConvert::TooShort)
+        return Err(ErrorConvert::HashTooShort)
+    }
+    
+    if size_factor < 1 {
+        return Err(ErrorConvert::InvalidSize)
     }
 
     println!("hash: {:?}", hash);
+
+    // length of one image side in pixels, must be divisible by 8
+    let img_side: u32 = IDENTICON_ROWS as u32 * size_factor as u32;
 
     let mut colors: [[u8; 3]; COLORS] = [[0, 0, 0]; COLORS];
 
@@ -118,16 +120,15 @@ pub fn pk_to_image(hash: &[u8]) -> Result<DynamicImage, ErrorConvert> {
     }
 
 
-    let mut img = ImageBuffer::new(IMG_SIDE as u32, IMG_SIDE as u32);
+    let mut img = ImageBuffer::new(img_side as u32, img_side as u32);
 
     //println!("{:?}", color_map);
 
     // draw a picture from the color_map
     for (x, y, pixel) in img.enumerate_pixels_mut() {
-        let row: usize = (y / (IDENTICON_BLOCK_SIZE as u32)) as usize;
-        let col_tm: usize = (x / (IDENTICON_BLOCK_SIZE as u32)) as usize;
+        let row: usize = (y / (size_factor as u32)) as usize;
+        let col_tm: usize = (x / (size_factor as u32)) as usize;
         let col: usize = ((col_tm as isize *2 - (IDENTICON_ROWS as isize - 1))/2).abs() as usize; // mirror on vertical axis
-        //println!("pixel x:{:?} y:{:?} --- row:{:?} col:{:?}", x, y, row, col);
 
         *pixel = image::Rgb(*color_map[row][col]);
     }
